@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f6f1">
+  <meta name="description" content="現場で縞鋼板の規格別枚数を数えるカウンターです。">
+  <title>縞鋼板 枚数カウンター</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17211d;
+      --muted: #68736d;
+      --green: #176b4b;
+      --green-dark: #105239;
+      --paper: #f4f6f1;
+      --card: #ffffff;
+      --line: #e2e8e1;
+      --soft: #edf4ef;
+      --orange: #d77a32;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .app { width: min(100%, 680px); margin: 0 auto; padding: 22px 16px calc(28px + env(safe-area-inset-bottom)); }
+    header { padding: 5px 2px 18px; }
+    .eyebrow { margin: 0 0 7px; color: var(--green); font-size: 12px; font-weight: 800; letter-spacing: .12em; }
+    h1 { margin: 0; font-size: clamp(25px, 7vw, 34px); line-height: 1.2; letter-spacing: -.04em; }
+    .sub { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 2px 0 20px; }
+    .summary-card { min-height: 91px; padding: 14px 15px; border-radius: 17px; background: var(--green); color: white; box-shadow: 0 4px 13px #153c2814; }
+    .summary-card.secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
+    .summary-label { display: block; font-size: 12px; opacity: .84; }
+    .summary-value { display: flex; align-items: baseline; gap: 6px; margin-top: 5px; font-weight: 800; }
+    .summary-value strong { font-size: 31px; line-height: 1; }
+    .summary-value span { font-size: 13px; }
+    .section-title { display: flex; align-items: center; gap: 9px; margin: 22px 2px 10px; font-size: 17px; font-weight: 800; }
+    .section-title::before { content: ""; width: 5px; height: 19px; border-radius: 5px; background: var(--green); }
+    .section-note { margin: -3px 2px 10px; color: var(--muted); font-size: 12px; }
+    .item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-bottom: 9px; padding: 14px 13px 14px 16px; background: var(--card); border: 1px solid var(--line); border-radius: 17px; box-shadow: 0 2px 7px #19332108; }
+    .item-name { font-size: 17px; font-weight: 800; line-height: 1.35; }
+    .item-detail { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .counter { display: grid; grid-template-columns: 47px 52px 47px; align-items: center; gap: 4px; }
+    .counter button { width: 47px; height: 48px; border: 0; border-radius: 13px; background: var(--soft); color: var(--green-dark); font-size: 26px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+    .counter button:active { transform: scale(.95); background: #d8e9dd; }
+    .counter button.plus { background: var(--green); color: white; }
+    .counter button.plus:active { background: var(--green-dark); }
+    .count { min-width: 52px; text-align: center; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .count-unit { display: block; margin-top: 1px; color: var(--muted); font-size: 10px; font-weight: 600; }
+    .actions { display: flex; justify-content: flex-end; margin-top: 18px; }
+    .reset { min-height: 42px; padding: 0 15px; border: 1px solid #d7ded7; border-radius: 12px; background: transparent; color: #47524b; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .footnote { margin: 14px 3px 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
+    .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 5; transform: translate(-50%, 12px); padding: 10px 15px; border-radius: 999px; background: #17211d; color: white; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    button:focus-visible { outline: 3px solid #efad67; outline-offset: 2px; }
+    @media (max-width: 380px) { .app { padding-right: 12px; padding-left: 12px; } .item { padding-left: 12px; gap: 6px; } .counter { grid-template-columns: 42px 43px 42px; gap: 2px; } .counter button { width: 42px; height: 45px; } .count { min-width: 43px; font-size: 20px; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <p class="eyebrow">FIELD COUNTER</p>
+      <h1>縞鋼板 枚数カウンター</h1>
+      <p class="sub">規格を選んで、＋／−で数えてください。</p>
+    </header>
+
+    <section class="summary" aria-label="集計">
+      <div class="summary-card">
+        <span class="summary-label">一枚物 合計</span>
+        <div class="summary-value"><strong id="single-total">0</strong><span>枚</span></div>
+      </div>
+      <div class="summary-card secondary">
+        <span class="summary-label">二枚割り 合計</span>
+        <div class="summary-value"><strong id="set-total">0</strong><span>組（実物 <span id="split-piece-total">0</span> 枚）</span></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="single-heading">
+      <h2 class="section-title" id="single-heading">一枚物</h2>
+      <div id="single-list"></div>
+    </section>
+
+    <section aria-labelledby="split-heading">
+      <h2 class="section-title" id="split-heading">二枚割り</h2>
+      <p class="section-note">1組 ＝ 1,000×500が2枚</p>
+      <div id="split-list"></div>
+    </section>
+
+    <div class="actions"><button class="reset" type="button" id="reset">すべてリセット</button></div>
+    <p class="footnote">入力した枚数は、この端末のブラウザーに保存されます。別の端末やブラウザーとは共有されません。</p>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // 初期規格と、この端末に保存するカウンター値です。
+    const items = [
+      { id: "single-1000", group: "single", name: "1,000 × 1,000", detail: "一枚物", unit: "枚" },
+      { id: "single-600", group: "single", name: "600 × 600", detail: "一枚物", unit: "枚" },
+      { id: "single-500", group: "single", name: "500 × 500", detail: "一枚物", unit: "枚" },
+      { id: "split-1000", group: "split", name: "1,000 × 1,000", detail: "二枚割り（1,000 × 500が2枚）", unit: "組" }
+    ];
+    const storageKey = "shima-kohan-counter-v1";
+    let counts = loadCounts();
+    let toastTimer;
+
+    function loadCounts() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        return Object.fromEntries(items.map(item => [item.id, Math.max(0, Number(saved[item.id]) || 0)]));
+      } catch {
+        return Object.fromEntries(items.map(item => [item.id, 0]));
+      }
+    }
+
+    function renderItem(item) {
+      const row = document.createElement("article");
+      row.className = "item";
+      row.innerHTML = `
+        <div>
+          <div class="item-name">${item.name}</div>
+          <span class="item-detail">${item.detail}</span>
+        </div>
+        <div class="counter" aria-label="${item.name} ${item.unit}数">
+          <button type="button" aria-label="${item.name}を1${item.unit}減らす" data-change="-1" data-id="${item.id}">−</button>
+          <div class="count" id="count-${item.id}" aria-live="polite">0<span class="count-unit">${item.unit}</span></div>
+          <button class="plus" type="button" aria-label="${item.name}を1${item.unit}増やす" data-change="1" data-id="${item.id}">＋</button>
+        </div>`;
+      return row;
+    }
+
+    function draw() {
+      const singleList = document.getElementById("single-list");
+      const splitList = document.getElementById("split-list");
+      singleList.replaceChildren(...items.filter(item => item.group === "single").map(renderItem));
+      splitList.replaceChildren(...items.filter(item => item.group === "split").map(renderItem));
+      document.querySelectorAll("[data-change]").forEach(button => {
+        button.addEventListener("click", () => changeCount(button.dataset.id, Number(button.dataset.change)));
+      });
+      update();
+    }
+
+    function changeCount(id, amount) {
+      counts[id] = Math.max(0, (counts[id] || 0) + amount);
+      saveCounts();
+      update();
+    }
+
+    function saveCounts() {
+      try { localStorage.setItem(storageKey, JSON.stringify(counts)); }
+      catch { showToast("保存できませんでした"); }
+    }
+
+    function update() {
+      for (const item of items) {
+        const target = document.getElementById(`count-${item.id}`);
+        if (target) target.firstChild.textContent = String(counts[item.id] || 0);
+      }
+      const singles = items.filter(item => item.group === "single").reduce((sum, item) => sum + counts[item.id], 0);
+      const sets = items.filter(item => item.group === "split").reduce((sum, item) => sum + counts[item.id], 0);
+      document.getElementById("single-total").textContent = String(singles);
+      document.getElementById("set-total").textContent = String(sets);
+      document.getElementById("split-piece-total").textContent = String(sets * 2);
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    document.getElementById("reset").addEventListener("click", () => {
+      if (!items.some(item => counts[item.id] > 0)) {
+        showToast("枚数はすでに0です");
+        return;
+      }
+      if (window.confirm("すべての枚数を0に戻しますか？")) {
+        counts = Object.fromEntries(items.map(item => [item.id, 0]));
+        saveCounts();
+        update();
+        showToast("枚数をリセットしました");
+      }
+    });
+
+    draw();
+  </script>
+</body>
+</html>
